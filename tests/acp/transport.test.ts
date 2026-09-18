@@ -130,6 +130,19 @@ describe('ChildProcessTransport', () => {
     expect(code === null || code === -9).toBe(true)
   })
 
+  it('emits error and closes when the cwd does not exist', async () => {
+    const transport = new ChildProcessTransport({
+      command: process.execPath,
+      args: ['-e', ''],
+      cwd: '/nonexistent-dir-for-test'
+    })
+    const errorPromise = once(transport, 'error')
+    transport.start()
+    const [err] = (await errorPromise) as [Error]
+    expect((err as NodeJS.ErrnoException).code).toBe('ENOENT')
+    expect(transport.getState()).toBe('closed')
+  })
+
   it('rejects send when not running', () => {
     const transport = makeTransport()
     expect(() =>

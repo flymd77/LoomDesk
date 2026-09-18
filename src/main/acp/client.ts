@@ -84,6 +84,8 @@ export class AcpClient {
   ) {
     this.requestTimeoutMs = options.requestTimeoutMs ?? 60_000
     transport.on('message', (msg: JsonRpcMessage) => this.handleMessage(msg))
+    // Spawn/transport failures must surface immediately, not as timeouts.
+    transport.on('error', (err: Error) => this.rejectAllPending(err.message))
     transport.on('exit', () => this.rejectAllPending('agent process exited'))
   }
 

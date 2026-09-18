@@ -1,6 +1,10 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import { registerIpc } from './ipc'
+import { openDatabase } from './store/db'
+import { AgentRegistry } from './agents/registry'
+import { SessionStore } from './store/sessions'
+import { SessionService } from './sessions/service'
 
 // Keep a global reference to the window object to avoid garbage collection closing the window.
 let mainWindow: BrowserWindow | null = null
@@ -44,7 +48,13 @@ function createMainWindow(): void {
 }
 
 app.whenReady().then(() => {
-  registerIpc()
+  // Canonical state lives in the user data directory.
+  const db = openDatabase(app.getPath('userData'))
+  const agents = new AgentRegistry(db)
+  const sessions = new SessionStore(db)
+  const service = new SessionService(sessions, agents)
+
+  registerIpc({ agents, sessions, service })
   createMainWindow()
 
   app.on('activate', () => {

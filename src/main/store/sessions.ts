@@ -83,7 +83,7 @@ export class SessionStore {
         SELECT s.*, COUNT(m.id) AS message_count
         FROM sessions s LEFT JOIN messages m ON m.session_id = s.id
         GROUP BY s.id
-        ORDER BY s.updated_at DESC
+        ORDER BY s.updated_at DESC, s.rowid DESC
         LIMIT ?
       `)
       .all(limit) as Array<Record<string, unknown>>

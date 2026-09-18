@@ -58,9 +58,21 @@ export class ChildProcessTransport extends EventEmitter {
         stdio: ['pipe', 'pipe', 'pipe']
       })
     } catch (err) {
-      this.emit('error', err instanceof Error ? err : new Error(String(err)))
-      return
+      // Synchronous spawn failure (invalid arguments).
+      this.state = 'closed'
+      const error = err instanceof Error ? err : new Error(String(err))
+      this.emit('error', error)
+      throw error
     }
+
+    // Asynchronous spawn failure (missing binary, missing cwd, ...):
+    // node emits 'error' after start() returned, so surface it by
+    // flipping state and emitting; callers awaiting a handshake will
+    // see the transport close without frames and can inspect this.
+    child.on('error', (err) => {
+      this.state = 'closed'
+      this.emit('error', err)
+    })
 
     this.child = child
     this.state = 'running'
@@ -68,10 +80,6 @@ export class ChildProcessTransport extends EventEmitter {
     // Surface stderr for diagnostics; ACP servers must not send frames here.
     child.stderr.on('data', (chunk: Buffer) => {
       this.emit('stderr', chunk.toString('utf8'))
-    })
-
-    child.on('error', (err) => {
-      this.emit('error', err)
     })
 
     child.on('exit', (code) => {
