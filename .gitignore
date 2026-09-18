@@ -38,3 +38,4 @@ coverage/
 
 # electron-builder output
 release/
+.firecrawl/
