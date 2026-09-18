@@ -183,14 +183,10 @@ export class AcpClient {
   }
 
   private handleMessage(msg: JsonRpcMessage): void {
-    if (isJsonRpcRequest(msg)) {
-      // Outbound-scoped request handlers are registered via onRequest;
-      // responses carry no method, so an inbound request without a handler
-      // falls through here. Nothing to do — no reply keeps behavior honest.
-      return
-    }
     if ('method' in msg) {
-      return // notifications are handled by onNotification listeners
+      // Inbound call (request or notification): routed by onRequest /
+      // onNotification listeners; never correlated with pending responses.
+      return
     }
     // Response path: correlate by id.
     const id = msg.id
