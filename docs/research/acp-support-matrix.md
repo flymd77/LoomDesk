@@ -21,7 +21,7 @@ There is an official **TypeScript library** (`@zed-industries/agent-client-proto
 
 | CLI | Vendor | ACP status | How to launch | Notes |
 |---|---|---|---|---|
-| **Codex CLI** | OpenAI | ✅ via adapter [`@agentclientprotocol/codex-acp`](https://github.com/agentclientprotocol/codex-acp) | `npx @agentclientprotocol/codex-acp` | Our primary agent. Adapter maintained under the official ACP org. Native ACP support in Codex itself is still an [open issue (#2785)](https://github.com/openai/codex/issues/2785). |
+| **Codex CLI** | OpenAI | ✅ via adapter [`@agentclientprotocol/codex-acp`](https://github.com/agentclientprotocol/codex-acp) | `npx @agentclientprotocol/codex-acp` | Adapter maintained under the official ACP org. Native ACP support in Codex itself is still an [open issue (#2785)](https://github.com/openai/codex/issues/2785). |
 | **Claude Code** | Anthropic | ✅ via adapter [`@zed-industries/claude-code-acp`](https://www.npmjs.com/package/@zed-industries/claude-code-acp) | `npx @zed-industries/claude-code-acp` | Most mature path; huge user base. Adapter maintained under Zed. |
 | **Qwen Code** | Alibaba | ✅ **native** (`--experimental-acp`) | `qwen --experimental-acp` | Gemini-CLI fork; ACP support is active (recent releases include ACP permission-queue fixes). Flag still marked experimental — verify stability locally. |
 | **Kimi CLI** | Moonshot AI | ✅ **native** (`kimi acp`) | `kimi acp` | First-party docs page for the ACP subcommand; designed for Zed-style clients. |
@@ -36,7 +36,7 @@ There is an official **TypeScript library** (`@zed-industries/agent-client-proto
 
 Ship M0/M1 with **three launch agents**:
 
-1. **Codex CLI** (via `codex-acp`) — **our primary agent, always listed first**. First-class support and testing priority.
+1. **Codex CLI** (via `codex-acp`) — our primary agent.
 2. **Claude Code** (via `claude-code-acp`) — the de-facto default; most users arrive with it already installed.
 3. **Qwen Code** (native `--experimental-acp`) — the China-ecosystem flagship; open source, npm-installed, actively maintained.
 
@@ -48,14 +48,14 @@ GLM Coding Plan users are served through Claude Code with a config preset — we
 
 - Two launch shapes to support: **adapter-wrapped** (an npm package wraps the CLI; the CLI itself never speaks ACP) and **native** (the CLI has a built-in ACP mode/flag). Both are just "spawn this command, speak JSON-RPC over stdio" from our side — the difference only matters in setup UX (how we detect and validate the command).
 - Auth differs per agent: Codex CLI uses its own auth (ChatGPT account or API key); Claude Code uses its subscription/API key; Qwen Code uses Qwen OAuth or API key; GLM presets inject env vars (`ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`). Our agent config model needs: command, args, env, and a per-agent auth preset.
-- `session/load` support must be verified **per agent** during M0 local testing — starting with Codex, our primary agent — because resume is core to our resumable-sessions promise, and adapters may not all implement it.
+- `session/load` support must be verified **per agent** during M0 local testing — resume is core to our resumable-sessions promise, and adapters may not all implement it.
 
 ## Open items for local verification (M0 checklist)
 
-- [ ] Spawn each launch agent and complete `initialize` handshake (protocol version pinned: v1) — **Codex first**
-- [ ] Streaming: message chunks, tool-call updates, plan updates render end-to-end — **Codex first**
-- [ ] `session/request_permission` round-trip (allow/deny both paths) — **Codex first**
-- [ ] `session/load` resume: works per agent? what breaks? — **Codex first**
+- [ ] Spawn each launch agent and complete `initialize` handshake (protocol version pinned: v1)
+- [ ] Streaming: message chunks, tool-call updates, plan updates render end-to-end
+- [ ] `session/request_permission` round-trip (allow/deny both paths)
+- [ ] `session/load` resume: works per agent? what breaks?
 - [ ] Codex: confirm `codex-acp` adapter tracks upstream Codex releases without lag; note any version pinning needs
 - [ ] Qwen Code: is `--experimental-acp` stable enough to default-recommend? Any flag rename pending?
 - [ ] iFlow CLI: does it expose a plain stdio ACP server mode at all?
