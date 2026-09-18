@@ -1,7 +1,26 @@
-/* Minimal base styles for the skeleton; design system lands in a later PR. */
+@import 'tailwindcss';
 
-:root {
-  color-scheme: light dark;
+/* LoomDesk theme tokens: single dark-first palette used across the shell. */
+@theme {
+  --color-surface: #101014;
+  --color-surface-raised: #17171d;
+  --color-surface-hover: #1f1f27;
+  --color-border: #2a2a33;
+  --color-text-primary: #e8e8ee;
+  --color-text-secondary: #9a9aa8;
+  --color-accent: #4f7cf7;
+  --color-accent-hover: #6a90f9;
+  --color-success: #3fb96b;
+  --color-warning: #e0a13c;
+  --color-danger: #e05656;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
   font-family:
     system-ui,
     -apple-system,
@@ -10,40 +29,6 @@
     sans-serif;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: light-dark(#fafafa, #1a1a1a);
-  color: light-dark(#1a1a1a, #fafafa);
-}
-
-.app {
-  text-align: center;
-}
-
-.app h1 {
-  font-size: 2rem;
-  margin-bottom: 0.25rem;
-}
-
-.tagline {
-  opacity: 0.7;
-  margin-top: 0;
-}
-
-.app-info {
-  font-size: 0.85rem;
-  opacity: 0.6;
-  font-variant-numeric: tabular-nums;
-}
-
-.error {
-  color: #d33;
+#root {
+  height: 100vh;
 }
