@@ -59,6 +59,31 @@ export interface MessageDto {
   createdAt: number
 }
 
+/** Text block shape inside streamed content (ACP content blocks). */
+export interface TextBlock {
+  type: 'text'
+  text: string
+}
+
+/** Tool call update as streamed by the agent (subset used for display). */
+export interface ToolCallUpdate {
+  sessionUpdate: 'tool_call' | 'tool_call_update'
+  toolCallId: string
+  title?: string
+  status?: 'pending' | 'in_progress' | 'completed' | 'failed'
+}
+
+/** Payload of a 'message' session event. */
+export interface MessageEventPayload {
+  role: MessageDto['role']
+  content: unknown
+}
+
+/** Payload of a 'status' session event. */
+export interface StatusEventPayload {
+  status: SessionSummaryDto['status']
+}
+
 /** Pushed from main to renderer on session activity. */
 export interface SessionEventDto {
   type: 'message' | 'status' | 'permission'

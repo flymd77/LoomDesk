@@ -7,19 +7,31 @@ import { useCallback, useEffect, useState } from 'react'
 import type {
   AgentConfigDto,
   SessionEventDto,
+  SessionRecordDto,
   SessionSummaryDto
 } from '../shared/ipc'
 import { Sidebar } from './components/Sidebar'
 import { SessionHome } from './components/SessionHome'
+import { ConversationView } from './components/ConversationView'
 
 export function App(): React.JSX.Element {
   const [agents, setAgents] = useState<AgentConfigDto[]>([])
   const [sessions, setSessions] = useState<SessionSummaryDto[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [activeRecord, setActiveRecord] = useState<SessionRecordDto | null>(null)
 
   const refreshSessions = useCallback(async (): Promise<void> => {
     setSessions(await window.loomdesk.listSessions())
   }, [])
+
+  // Selection changes load the full record; refreshes keep it current.
+  useEffect(() => {
+    if (!activeId) {
+      setActiveRecord(null)
+      return
+    }
+    void window.loomdesk.getSession(activeId).then(setActiveRecord)
+  }, [activeId])
 
   useEffect(() => {
     void window.loomdesk.listAgents().then(setAgents)
@@ -41,15 +53,22 @@ export function App(): React.JSX.Element {
         agents={agents}
       />
       <main className="flex-1 overflow-hidden">
-        {activeId ? (
-          <div className="p-6 text-sm text-(--color-text-secondary)">
-            Conversation view lands in the next PR (session {activeId}).
-          </div>
+        {activeId && activeRecord ? (
+          <ConversationView
+            key={activeRecord.id}
+            session={activeRecord}
+            onStatusChange={refreshSessions}
+          />
+        ) : activeId ? (
+          <div className="p-6 text-sm text-(--color-text-secondary)">Loading…</div>
         ) : (
-          <SessionHome agents={agents} onCreated={(id) => {
-            setActiveId(id)
-            void refreshSessions()
-          }} />
+          <SessionHome
+            agents={agents}
+            onCreated={(id) => {
+              setActiveId(id)
+              void refreshSessions()
+            }}
+          />
         )}
       </main>
     </div>
