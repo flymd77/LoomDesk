@@ -69,6 +69,16 @@ export type SessionUpdate =
   | PlanUpdate
   | SessionUpdateBase
 
+/**
+ * Wire shape of a `session/update` notification: the agent wraps the
+ * update payload in a session envelope. Kept separate from SessionUpdate
+ * (the unwrapped payload) so consumers never deal with unwrapping.
+ */
+export interface SessionNotification {
+  sessionId: string
+  update: SessionUpdate
+}
+
 /** Result of a completed prompt turn. */
 export interface StopReason {
   /** 'end_turn' | 'max_tokens' | 'max_turn_requests' | 'refusal' | 'cancelled' */
@@ -138,16 +148,23 @@ export class AcpSession {
   }
 
   /**
-   * Subscribe to this session's updates. The handler receives every
-   * `session/update` notification; filtering by sessionUpdate kind is
-   * left to the consumer so unknown kinds are never dropped silently.
+   * Subscribe to this session's updates. The handler receives the
+   * unwrapped update payload; filtering by sessionUpdate kind is left
+   * to the consumer so unknown kinds are never dropped silently.
+   * Notifications for a different session are ignored.
    * Returns an unsubscribe function.
    */
   onUpdate(handler: (update: SessionUpdate) => void): () => void {
     return this.client.onNotification('session/update', (params) => {
-      const update = params as SessionUpdate
-      if (update && typeof update === 'object') {
-        handler(update)
+      const notification = params as SessionNotification
+      if (
+        notification &&
+        typeof notification === 'object' &&
+        notification.sessionId === this.sessionId &&
+        notification.update &&
+        typeof notification.update === 'object'
+      ) {
+        handler(notification.update)
       }
     })
   }
