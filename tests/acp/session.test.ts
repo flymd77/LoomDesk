@@ -27,7 +27,7 @@ process.stdin.on('data', (chunk) => {
       send({ jsonrpc: '2.0', id: msg.id, result: { sessionId: 'sess-001' } });
     } else if (msg.method === 'session/load') {
       if (msg.params.sessionId === 'known-session') {
-        send({ jsonrpc: '2.0', method: 'session/update', params: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'restored context' } } });
+        send({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: msg.params.sessionId, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'restored context' } } } });
         send({ jsonrpc: '2.0', id: msg.id, result: {} });
       } else {
         send({ jsonrpc: '2.0', id: msg.id, error: { code: -32002, message: 'unknown session' } });
@@ -41,7 +41,8 @@ process.stdin.on('data', (chunk) => {
         { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'world' } },
         { sessionUpdate: 'plan', entries: [{ content: 'step 1', status: 'completed' }] }
       ];
-      for (const u of seq) send({ jsonrpc: '2.0', method: 'session/update', params: u });
+      const sid = msg.params.sessionId;
+      for (const u of seq) send({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: sid, update: u } });
       const reason = (globalThis.__cancelled && msg.params.sessionId === 'sess-001') ? 'cancelled' : 'end_turn';
       send({ jsonrpc: '2.0', id: msg.id, result: { stopReason: reason } });
     } else if (msg.method === 'session/cancel') {
@@ -132,7 +133,9 @@ describe('AcpSession', () => {
 
     const updates: SessionUpdate[] = []
     const unsubscribe = client2.onNotification('session/update', (params) => {
-      updates.push(params as SessionUpdate)
+      // Raw notification shape: { sessionId, update } per spec.
+      const n = params as { sessionId: string; update: SessionUpdate }
+      if (n && typeof n === 'object' && n.update) updates.push(n.update)
     })
     const session = await AcpSession.load(client2, 'known-session', '/tmp')
     expect(session.id).toBe('known-session')

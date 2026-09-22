@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron'
 import { ChildProcessTransport } from '../acp/transport'
 import { AcpClient } from '../acp/client'
-import { AcpSession, type SessionUpdate } from '../acp/session'
+import { AcpSession, type SessionNotification, type SessionUpdate } from '../acp/session'
 import { PermissionBroker } from '../acp/permission'
 import type { AgentRegistry } from '../agents/registry'
 import type { SessionStore, MessageRecord } from '../store/sessions'
@@ -75,9 +75,18 @@ export class SessionService {
     const live: LiveSession = { transport, client, broker, acp: null }
     this.live.set(sessionId, live)
 
-    // Route session updates into the store and the windows.
+    // Route session updates into the store and the windows. The wire
+    // payload is { sessionId, update }; unwrap and verify the session.
     client.onNotification('session/update', (params) => {
-      const update = params as SessionUpdate
+      const notification = params as SessionNotification
+      if (
+        !notification ||
+        typeof notification !== 'object' ||
+        notification.sessionId !== live.acp?.id
+      ) {
+        return
+      }
+      const update = notification.update as SessionUpdate
       if (!update || typeof update !== 'object') return
       this.persistUpdate(sessionId, update)
     })

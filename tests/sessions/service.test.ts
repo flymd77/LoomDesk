@@ -38,8 +38,10 @@ process.stdin.on('data', (chunk) => {
     } else if (msg.method === 'session/load') {
       send({ jsonrpc: '2.0', id: msg.id, error: { code: -32002, message: 'unknown session' } });
     } else if (msg.method === 'session/prompt') {
-      send({ jsonrpc: '2.0', method: 'session/update', params: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'pong:' + JSON.stringify(msg.params.content[0].text) } } });
-      send({ jsonrpc: '2.0', method: 'session/update', params: { sessionUpdate: 'tool_call', toolCallId: 't9', title: 'Shell', status: 'in_progress' } });
+      // Spec shape: notification params wrap the update in a session envelope.
+      const sid = msg.params.sessionId;
+      send({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: sid, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'pong:' + JSON.stringify(msg.params.content[0].text) } } } });
+      send({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: sid, update: { sessionUpdate: 'tool_call', toolCallId: 't9', title: 'Shell', status: 'in_progress' } } });
       send({ jsonrpc: '2.0', id: msg.id, result: { stopReason: 'end_turn' } });
     } else if (msg.method === 'session/cancel') {
       // notification; nothing to do
