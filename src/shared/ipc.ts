@@ -100,6 +100,21 @@ export interface FeishuSettingsDto {
   endpoint: 'feishu' | 'lark'
 }
 
+/** One guided setup step for an agent (display only, never executed). */
+export interface SetupStepDto {
+  title: string
+  command?: string
+  detail?: string
+}
+
+/** Install/setup guidance for one agent. */
+export interface AgentSetupGuideDto {
+  agentId: string
+  npmPackage?: string
+  steps: SetupStepDto[]
+  notes: string[]
+}
+
 /** The full API surface exposed on window.loomdesk by the preload. */
 export interface LoomDeskApi {
   getAppInfo(): Promise<AppInfo>
@@ -126,4 +141,6 @@ export interface LoomDeskApi {
   getFeishuSettings(): Promise<FeishuSettingsDto | null>
   setFeishuSettings(values: Partial<FeishuSettingsDto>): Promise<boolean>
   testFeishu(): Promise<{ ok: boolean; message: string }>
+  // agent setup guidance
+  getSetupGuide(agentId: string): Promise<AgentSetupGuideDto | null>
 }

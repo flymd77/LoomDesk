@@ -30,7 +30,9 @@ const api: LoomDeskApi = {
 
   getFeishuSettings: () => ipcRenderer.invoke('notify:feishu:get'),
   setFeishuSettings: (values) => ipcRenderer.invoke('notify:feishu:set', values),
-  testFeishu: () => ipcRenderer.invoke('notify:feishu:test')
+  testFeishu: () => ipcRenderer.invoke('notify:feishu:test'),
+
+  getSetupGuide: (agentId) => ipcRenderer.invoke('agents:setupGuide', agentId)
 }
 
 contextBridge.exposeInMainWorld('loomdesk', api)
