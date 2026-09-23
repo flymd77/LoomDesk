@@ -4,7 +4,9 @@ import { registerIpc } from './ipc'
 import { openDatabase } from './store/db'
 import { AgentRegistry } from './agents/registry'
 import { SessionStore } from './store/sessions'
+import { SettingsStore } from './store/settings'
 import { SessionService } from './sessions/service'
+import { NotifyService } from './notify/service'
 
 // Keep a global reference to the window object to avoid garbage collection closing the window.
 let mainWindow: BrowserWindow | null = null
@@ -52,9 +54,16 @@ app.whenReady().then(() => {
   const db = openDatabase(app.getPath('userData'))
   const agents = new AgentRegistry(db)
   const sessions = new SessionStore(db)
+  const settings = new SettingsStore(db)
   const service = new SessionService(sessions, agents)
+  const notify = new NotifyService(sessions, settings)
 
-  registerIpc({ agents, sessions, service })
+  // Session status transitions drive IM notifications (fire-and-forget).
+  service.onStatus((sessionId, status) => {
+    void notify.onStatusChange(sessionId, status)
+  })
+
+  registerIpc({ agents, sessions, service, notify })
   createMainWindow()
 
   app.on('activate', () => {

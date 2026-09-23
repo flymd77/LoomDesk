@@ -82,5 +82,11 @@ function migrate(db: Database.Database): void {
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, id);
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,      -- dot-separated namespace, e.g. 'feishu.appId'
+      value TEXT NOT NULL,       -- JSON-encoded value
+      updated_at INTEGER NOT NULL
+    );
   `)
 }

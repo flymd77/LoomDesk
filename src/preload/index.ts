@@ -26,7 +26,11 @@ const api: LoomDeskApi = {
     const listener = (_e: unknown, event: SessionEventDto): void => handler(event)
     ipcRenderer.on('loomdesk:session-event', listener)
     return () => ipcRenderer.removeListener('loomdesk:session-event', listener)
-  }
+  },
+
+  getFeishuSettings: () => ipcRenderer.invoke('notify:feishu:get'),
+  setFeishuSettings: (values) => ipcRenderer.invoke('notify:feishu:set', values),
+  testFeishu: () => ipcRenderer.invoke('notify:feishu:test')
 }
 
 contextBridge.exposeInMainWorld('loomdesk', api)

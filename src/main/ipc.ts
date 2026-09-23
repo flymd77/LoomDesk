@@ -4,16 +4,18 @@ import type { AgentRegistry } from './agents/registry'
 import type { SessionStore, SessionSummary, SessionRecord } from './store/sessions'
 import type { SessionService } from './sessions/service'
 import type { AgentConfig, AgentDiagnostics } from './agents/types'
+import type { NotifyService, FeishuSettings } from './notify/service'
 
 /**
  * Central IPC registration. All channels exposed to the renderer are
  * registered here so the attack surface stays explicit and auditable.
- * Channel names are grouped by domain: app / agents / sessions.
+ * Channel names are grouped by domain: app / agents / sessions / notify.
  */
 export interface IpcDeps {
   agents: AgentRegistry
   sessions: SessionStore
   service: SessionService
+  notify: NotifyService
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -76,4 +78,14 @@ export function registerIpc(deps: IpcDeps): void {
     await deps.service.dispose(id)
     return true
   })
+
+  // ---------- notify (IM settings) ----------
+  ipcMain.handle('notify:feishu:get', () => deps.notify.feishuSettings())
+
+  ipcMain.handle('notify:feishu:set', (_e, values: Partial<FeishuSettings>) => {
+    deps.notify.setFeishuSettings(values)
+    return true
+  })
+
+  ipcMain.handle('notify:feishu:test', () => deps.notify.testFeishu())
 }

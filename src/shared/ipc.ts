@@ -91,6 +91,15 @@ export interface SessionEventDto {
   payload: unknown
 }
 
+/** Feishu IM integration settings (stored in the settings table). */
+export interface FeishuSettingsDto {
+  enabled: boolean
+  appId: string
+  appSecret: string
+  chatId: string
+  endpoint: 'feishu' | 'lark'
+}
+
 /** The full API surface exposed on window.loomdesk by the preload. */
 export interface LoomDeskApi {
   getAppInfo(): Promise<AppInfo>
@@ -113,4 +122,8 @@ export interface LoomDeskApi {
   disposeSession(id: string): Promise<boolean>
   // push events
   onSessionEvent(handler: (event: SessionEventDto) => void): () => void
+  // notify (IM settings)
+  getFeishuSettings(): Promise<FeishuSettingsDto | null>
+  setFeishuSettings(values: Partial<FeishuSettingsDto>): Promise<boolean>
+  testFeishu(): Promise<{ ok: boolean; message: string }>
 }
