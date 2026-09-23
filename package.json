@@ -38,6 +38,7 @@
   },
   "type": "module",
   "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.74.0",
     "better-sqlite3": "^13.0.3"
   }
 }

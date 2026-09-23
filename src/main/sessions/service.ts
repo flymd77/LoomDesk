@@ -2,7 +2,11 @@ import { BrowserWindow } from 'electron'
 import { ChildProcessTransport } from '../acp/transport'
 import { AcpClient } from '../acp/client'
 import { AcpSession, type SessionNotification, type SessionUpdate } from '../acp/session'
-import { PermissionBroker } from '../acp/permission'
+import {
+  PermissionBroker,
+  type PermissionRequest,
+  type PermissionOption
+} from '../acp/permission'
 import type { AgentRegistry } from '../agents/registry'
 import type { SessionStore, MessageRecord } from '../store/sessions'
 
@@ -40,11 +44,25 @@ export class SessionService {
   private readonly live = new Map<string, LiveSession>()
   /** External observers of status transitions (e.g. notifications). */
   private statusListeners = new Set<(sessionId: string, status: string) => void>()
+  /**
+   * Remote approval resolver: when set, 'ask' policy permission
+   * requests are routed to it (e.g. a Feishu approval card) instead of
+   * failing closed. Session-scoped waiting_permission status flows
+   * through the status listeners.
+   */
+  private remoteApproval: ((request: PermissionRequest) => Promise<PermissionOption>) | null = null
 
   constructor(
     private readonly sessions: SessionStore,
     private readonly agents: AgentRegistry
   ) {}
+
+  /** Install the remote (IM) approval resolver. */
+  setRemoteApproval(
+    resolver: ((request: PermissionRequest) => Promise<PermissionOption>) | null
+  ): void {
+    this.remoteApproval = resolver
+  }
 
   /** Register a callback fired after every status transition. */
   onStatus(listener: (sessionId: string, status: string) => void): () => void {
@@ -86,8 +104,25 @@ export class SessionService {
     })
     const client = new AcpClient(transport)
     const broker = new PermissionBroker(client)
-    // Permission policy and resolver wiring land with the UI approval
-    // card; until then requests fail closed (safe default).
+    // Resolver wiring: a remote (IM) approval service takes priority —
+    // the human answers from the phone. Without one, requests fail
+    // closed until a local UI resolver is installed.
+    broker.setResolver(async (request) => {
+      this.sessions.updateStatus(sessionId, 'waiting_permission')
+      this.emit(sessionId, 'status', { status: 'waiting_permission' })
+      this.notifyStatus(sessionId, 'waiting_permission')
+      try {
+        const remote = this.remoteApproval
+        if (remote) {
+          return await remote(request)
+        }
+        throw new Error('no permission resolver available')
+      } finally {
+        this.sessions.updateStatus(sessionId, 'idle')
+        this.emit(sessionId, 'status', { status: 'idle' })
+        this.notifyStatus(sessionId, 'idle')
+      }
+    })
     broker.attach()
 
     const live: LiveSession = { transport, client, broker, acp: null }

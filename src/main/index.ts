@@ -7,6 +7,7 @@ import { SessionStore } from './store/sessions'
 import { SettingsStore } from './store/settings'
 import { SessionService } from './sessions/service'
 import { NotifyService } from './notify/service'
+import { ApprovalService } from './notify/approval'
 
 // Keep a global reference to the window object to avoid garbage collection closing the window.
 let mainWindow: BrowserWindow | null = null
@@ -62,6 +63,18 @@ app.whenReady().then(() => {
   service.onStatus((sessionId, status) => {
     void notify.onStatusChange(sessionId, status)
   })
+
+  // Remote approval: permission requests surface as interactive cards;
+  // the human answers from the phone via the WebSocket card stream.
+  const approval = new ApprovalService(
+    notify.feishuClient,
+    () => {
+      const s = notify.feishuSettings()
+      return s && s.enabled ? { appId: s.appId, appSecret: s.appSecret } : null
+    }
+  )
+  service.setRemoteApproval((request) => approval.askViaCard(request))
+  approval.start()
 
   registerIpc({ agents, sessions, service, notify })
   createMainWindow()

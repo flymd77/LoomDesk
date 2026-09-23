@@ -36,8 +36,10 @@ process.stdin.on('data', (chunk) => {
         params: { sessionId: 's1', options: OPTIONS }
       });
     } else if (typeof msg.id === 'string' && msg.id[0] === 'a') {
-      // Client's answer to our inbound permission request.
-      const answer = msg.result ? msg.result.optionId : ('error:' + msg.error.message);
+      // Client's answer to our inbound permission request. Wire shape:
+      // { outcome: { outcome: 'selected', optionId } } per ACP schema.
+      const outcome = msg.result ? msg.result.outcome : null;
+      const answer = outcome && outcome.optionId !== undefined ? outcome.optionId : ('error:' + (msg.error ? msg.error.message : 'no outcome'));
       send({ jsonrpc: '2.0', id: pendingTriggerId, result: { answered: answer } });
     }
   }

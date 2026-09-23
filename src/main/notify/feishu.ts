@@ -30,6 +30,14 @@ export interface FeishuCard {
   headerColor?: 'blue' | 'green' | 'orange' | 'red'
 }
 
+/** One button on an interactive card. */
+export interface FeishuCardButton {
+  label: string
+  /** Custom value echoed back on click (encoded decision). */
+  value: Record<string, string>
+  style?: 'default' | 'primary' | 'danger'
+}
+
 interface TokenCache {
   token: string
   expiresAt: number
@@ -81,8 +89,30 @@ export class FeishuClient {
 
   /** Send one interactive card to the configured chat. Returns message id. */
   async sendCard(card: FeishuCard): Promise<string> {
+    return this.sendCardWithButtons(card, [])
+  }
+
+  /** Send a card with optional action buttons. Returns message id. */
+  async sendCardWithButtons(card: FeishuCard, buttons: FeishuCardButton[]): Promise<string> {
     const cfg = this.config()
     const token = await this.token()
+    const elements: Array<Record<string, unknown>> = [
+      {
+        tag: 'div',
+        text: { tag: 'lark_md', content: card.elements.filter((e) => e !== '').join('\n') }
+      }
+    ]
+    if (buttons.length > 0) {
+      elements.push({
+        tag: 'action',
+        actions: buttons.map((b) => ({
+          tag: 'button',
+          text: { tag: 'plain_text', content: b.label },
+          type: b.style === 'primary' ? 'primary' : b.style === 'danger' ? 'danger' : 'default',
+          value: b.value
+        }))
+      })
+    }
     const payload = {
       receive_id: cfg.chatId,
       msg_type: 'interactive',
@@ -92,12 +122,7 @@ export class FeishuClient {
           title: { tag: 'plain_text', content: card.title },
           template: card.headerColor ?? 'blue'
         },
-        elements: [
-          {
-            tag: 'div',
-            text: { tag: 'lark_md', content: card.elements.join('\n') }
-          }
-        ]
+        elements
       })
     }
     const res = await fetch(

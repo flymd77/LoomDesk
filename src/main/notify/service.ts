@@ -31,6 +31,11 @@ export class NotifyService {
     this.feishu = new FeishuClient(() => this.feishuSettings())
   }
 
+  /** Exposed for the approval service (same credentials, same client). */
+  get feishuClient(): FeishuClient {
+    return this.feishu
+  }
+
   /** Current feishu settings, or null when not configured/disabled. */
   feishuSettings(): FeishuSettings | null {
     const raw = this.settings.list('feishu') as Partial<FeishuSettings> | null
