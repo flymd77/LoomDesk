@@ -5,6 +5,7 @@ import type { SessionStore, SessionSummary, SessionRecord } from './store/sessio
 import type { SessionService } from './sessions/service'
 import type { AgentConfig, AgentDiagnostics } from './agents/types'
 import type { NotifyService, FeishuSettings } from './notify/service'
+import { SETUP_GUIDES, type AgentSetupGuide } from './agents/setup'
 
 /**
  * Central IPC registration. All channels exposed to the renderer are
@@ -88,4 +89,12 @@ export function registerIpc(deps: IpcDeps): void {
   })
 
   ipcMain.handle('notify:feishu:test', () => deps.notify.testFeishu())
+
+  // ---------- agent setup guidance ----------
+  ipcMain.handle('agents:setupGuide', (_e, agentId: string) => getSetupGuide(agentId))
+}
+
+/** Setup guide for one agent, or null when none exists. */
+function getSetupGuide(agentId: string): AgentSetupGuide | null {
+  return SETUP_GUIDES[agentId] ?? null
 }

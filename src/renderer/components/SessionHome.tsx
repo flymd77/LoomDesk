@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react'
 import type { AgentConfigDto, AgentDiagnosticsDto } from '../../shared/ipc'
+import { SetupGuideDialog } from './SetupGuideDialog'
 
 interface Props {
   agents: AgentConfigDto[]
@@ -14,6 +15,7 @@ interface Props {
 export function SessionHome({ agents }: Props): React.JSX.Element {
   const [diagnostics, setDiagnostics] = useState<Record<string, AgentDiagnosticsDto>>({})
   const [probing, setProbing] = useState(false)
+  const [guideFor, setGuideFor] = useState<{ id: string; name: string } | null>(null)
 
   const probeAll = async (): Promise<void> => {
     setProbing(true)
@@ -56,21 +58,39 @@ export function SessionHome({ agents }: Props): React.JSX.Element {
         <ul className="divide-y divide-(--color-border) rounded-lg border border-(--color-border)">
           {agents.map((a) => {
             const diag = diagnostics[a.id]
+            const missing = diag ? !diag.commandFound : false
             return (
               <li key={a.id} className="flex items-center justify-between px-3 py-2 text-sm">
                 <span>{a.name}</span>
-                <span className="text-xs text-(--color-text-secondary)">
+                <span className="flex items-center gap-2 text-xs text-(--color-text-secondary)">
                   {diag
                     ? diag.commandFound
                       ? diag.version ?? 'installed'
                       : 'not found'
                     : '—'}
+                  {diag && missing && (
+                    <button
+                      type="button"
+                      onClick={() => setGuideFor({ id: a.id, name: a.name })}
+                      className="rounded border border-(--color-border) px-2 py-0.5 text-xs text-(--color-accent) hover:bg-(--color-surface-hover)"
+                    >
+                      Set up
+                    </button>
+                  )}
                 </span>
               </li>
             )
           })}
         </ul>
       </div>
+
+      {guideFor && (
+        <SetupGuideDialog
+          agentId={guideFor.id}
+          agentName={guideFor.name}
+          onClose={() => setGuideFor(null)}
+        />
+      )}
     </div>
   )
 }
