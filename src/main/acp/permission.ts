@@ -86,21 +86,26 @@ export class PermissionBroker {
   }
 
   /**
-   * Resolve one permission request to the chosen option.
-   * The returned value is sent to the agent as the request result.
+   * Resolve one permission request to the chosen option and wrap it in
+   * the wire response shape. Per the ACP RequestPermissionResponse
+   * schema the result is { outcome: { outcome: 'selected', optionId } }
+   * (or { outcome: { outcome: 'cancelled' } }); returning the bare
+   * option breaks real agents.
    */
-  private async resolve(request: PermissionRequest): Promise<PermissionOutcome> {
+  private async resolve(
+    request: PermissionRequest
+  ): Promise<{ outcome: Record<string, unknown> }> {
     const options = Array.isArray(request.options) ? request.options : []
 
     if (this.policy === 'allow_all') {
       const allow = options.find((o) => o.kind === 'allow_once' || o.kind === 'allow_always')
-      if (allow) return allow
+      if (allow) return selected(allow)
       // No allow option: fall through to the human resolver rather than guess.
     }
 
     if (this.policy === 'deny_all') {
       const deny = options.find((o) => o.kind === 'reject_once' || o.kind === 'reject_always')
-      if (deny) return deny
+      if (deny) return selected(deny)
     }
 
     if (!this.resolver) {
@@ -108,6 +113,11 @@ export class PermissionBroker {
       throw new Error('no permission resolver installed')
     }
     const chosen = await this.resolver(request)
-    return chosen
+    return selected(chosen)
   }
+}
+
+/** Wrap one chosen option into the wire outcome shape. */
+function selected(option: PermissionOption): { outcome: Record<string, unknown> } {
+  return { outcome: { outcome: 'selected', optionId: option.optionId } }
 }
