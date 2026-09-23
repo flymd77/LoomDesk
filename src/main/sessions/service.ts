@@ -38,11 +38,29 @@ interface LiveSession {
 
 export class SessionService {
   private readonly live = new Map<string, LiveSession>()
+  /** External observers of status transitions (e.g. notifications). */
+  private statusListeners = new Set<(sessionId: string, status: string) => void>()
 
   constructor(
     private readonly sessions: SessionStore,
     private readonly agents: AgentRegistry
   ) {}
+
+  /** Register a callback fired after every status transition. */
+  onStatus(listener: (sessionId: string, status: string) => void): () => void {
+    this.statusListeners.add(listener)
+    return () => this.statusListeners.delete(listener)
+  }
+
+  private notifyStatus(sessionId: string, status: string): void {
+    for (const listener of this.statusListeners) {
+      try {
+        listener(sessionId, status)
+      } catch (err) {
+        console.error('[sessions] status listener failed:', err)
+      }
+    }
+  }
 
   /** Sessions currently holding a live agent process. */
   liveSessionIds(): string[] {
@@ -105,6 +123,7 @@ export class SessionService {
       }
       this.sessions.updateStatus(sessionId, 'idle')
       this.emit(sessionId, 'status', { status: 'idle' })
+      this.notifyStatus(sessionId, 'idle')
     } catch (err) {
       this.live.delete(sessionId)
       transport.close({ force: true })
@@ -124,6 +143,7 @@ export class SessionService {
     this.emit(sessionId, 'message', { role: 'user', content: { text } })
     this.sessions.updateStatus(sessionId, 'running')
     this.emit(sessionId, 'status', { status: 'running' })
+    this.notifyStatus(sessionId, 'running')
 
     try {
       const result = await live.acp.prompt([{ type: 'text', text }])
@@ -131,6 +151,7 @@ export class SessionService {
     } finally {
       this.sessions.updateStatus(sessionId, 'idle')
       this.emit(sessionId, 'status', { status: 'idle' })
+      this.notifyStatus(sessionId, 'idle')
     }
   }
 
@@ -150,6 +171,7 @@ export class SessionService {
     live.transport.close({ force: true })
     this.sessions.updateStatus(sessionId, 'closed')
     this.emit(sessionId, 'status', { status: 'closed' })
+    this.notifyStatus(sessionId, 'closed')
   }
 
   /** Messages for a session, paged (renderer supply beforeId cursor). */
