@@ -115,6 +115,40 @@ export interface AgentSetupGuideDto {
   notes: string[]
 }
 
+/** One Plan -> Execute -> Verify workflow run. */
+export interface WorkflowRunDto {
+  id: string
+  agentId: string
+  workspacePath: string
+  title: string
+  goal: string
+  verifyCommand: string
+  status: 'planning' | 'executing' | 'verifying' | 'passed' | 'failed' | 'cancelled'
+  createdAt: number
+  updatedAt: number
+}
+
+export interface WorkflowNodeDto {
+  id: number
+  runId: string
+  kind: 'plan' | 'execute' | 'verify'
+  status: 'pending' | 'active' | 'passed' | 'failed' | 'skipped'
+  startedAt: number | null
+  finishedAt: number | null
+  summary: string
+  createdAt: number
+}
+
+export interface WorkflowAttemptDto {
+  id: number
+  nodeId: number
+  sessionId: string | null
+  prompt: string
+  result: string
+  exitCode: number | null
+  createdAt: number
+}
+
 /** The full API surface exposed on window.loomdesk by the preload. */
 export interface LoomDeskApi {
   getAppInfo(): Promise<AppInfo>
@@ -143,4 +177,19 @@ export interface LoomDeskApi {
   testFeishu(): Promise<{ ok: boolean; message: string }>
   // agent setup guidance
   getSetupGuide(agentId: string): Promise<AgentSetupGuideDto | null>
+  // workflows
+  createWorkflow(params: {
+    agentId: string
+    workspacePath: string
+    title: string
+    goal: string
+    verifyCommand: string
+  }): Promise<WorkflowRunDto>
+  listWorkflows(limit?: number): Promise<WorkflowRunDto[]>
+  getWorkflow(id: string): Promise<WorkflowRunDto | null>
+  workflowNodes(id: string): Promise<WorkflowNodeDto[]>
+  workflowAttempts(nodeId: number): Promise<WorkflowAttemptDto[]>
+  startWorkflow(id: string): Promise<boolean>
+  cancelWorkflow(id: string): Promise<boolean>
+  removeWorkflow(id: string): Promise<boolean>
 }

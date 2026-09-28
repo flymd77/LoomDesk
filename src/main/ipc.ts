@@ -6,6 +6,8 @@ import type { SessionService } from './sessions/service'
 import type { AgentConfig, AgentDiagnostics } from './agents/types'
 import type { NotifyService, FeishuSettings } from './notify/service'
 import { SETUP_GUIDES, type AgentSetupGuide } from './agents/setup'
+import type { WorkflowStore, WorkflowRun } from './store/workflows'
+import type { WorkflowEngine } from './workflow/engine'
 
 /**
  * Central IPC registration. All channels exposed to the renderer are
@@ -17,6 +19,8 @@ export interface IpcDeps {
   sessions: SessionStore
   service: SessionService
   notify: NotifyService
+  workflows: WorkflowStore
+  engine: WorkflowEngine
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -92,6 +96,44 @@ export function registerIpc(deps: IpcDeps): void {
 
   // ---------- agent setup guidance ----------
   ipcMain.handle('agents:setupGuide', (_e, agentId: string) => getSetupGuide(agentId))
+
+  // ---------- workflows ----------
+  ipcMain.handle(
+    'workflows:create',
+    (
+      _e,
+      params: {
+        agentId: string
+        workspacePath: string
+        title: string
+        goal: string
+        verifyCommand: string
+      }
+    ): WorkflowRun => deps.engine.create(params)
+  )
+
+  ipcMain.handle('workflows:list', (_e, limit?: number) => deps.workflows.listRuns(limit))
+
+  ipcMain.handle('workflows:get', (_e, id: string) => deps.workflows.getRun(id))
+
+  ipcMain.handle('workflows:nodes', (_e, id: string) => deps.workflows.nodes(id))
+
+  ipcMain.handle(
+    'workflows:attempts',
+    (_e, nodeId: number) => deps.workflows.attempts(nodeId)
+  )
+
+  ipcMain.handle('workflows:start', async (_e, id: string): Promise<boolean> => {
+    await deps.engine.start(id)
+    return true
+  })
+
+  ipcMain.handle('workflows:cancel', (_e, id: string): boolean => {
+    deps.engine.cancel(id)
+    return true
+  })
+
+  ipcMain.handle('workflows:remove', (_e, id: string): boolean => deps.workflows.removeRun(id))
 }
 
 /** Setup guide for one agent, or null when none exists. */

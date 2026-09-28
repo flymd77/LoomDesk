@@ -8,6 +8,8 @@ import { SettingsStore } from './store/settings'
 import { SessionService } from './sessions/service'
 import { NotifyService } from './notify/service'
 import { ApprovalService } from './notify/approval'
+import { WorkflowStore } from './store/workflows'
+import { WorkflowEngine } from './workflow/engine'
 
 // Keep a global reference to the window object to avoid garbage collection closing the window.
 let mainWindow: BrowserWindow | null = null
@@ -76,7 +78,10 @@ app.whenReady().then(() => {
   service.setRemoteApproval((request) => approval.askViaCard(request))
   approval.start()
 
-  registerIpc({ agents, sessions, service, notify })
+  const workflows = new WorkflowStore(db)
+  const engine = new WorkflowEngine(workflows, sessions, service)
+
+  registerIpc({ agents, sessions, service, notify, workflows, engine })
   createMainWindow()
 
   app.on('activate', () => {
