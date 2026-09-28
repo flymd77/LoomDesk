@@ -88,5 +88,40 @@ function migrate(db: Database.Database): void {
       value TEXT NOT NULL,       -- JSON-encoded value
       updated_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS workflow_runs (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL REFERENCES agents(id),
+      workspace_path TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      goal TEXT NOT NULL,             -- the user's natural-language goal
+      verify_command TEXT NOT NULL,   -- explicit command; exit 0 = pass
+      status TEXT NOT NULL,           -- 'planning' | 'executing' | 'verifying' | 'passed' | 'failed' | 'cancelled'
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS workflow_nodes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      run_id TEXT NOT NULL REFERENCES workflow_runs(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,            -- 'plan' | 'execute' | 'verify'
+      status TEXT NOT NULL,          -- 'pending' | 'active' | 'passed' | 'failed' | 'skipped'
+      started_at INTEGER,
+      finished_at INTEGER,
+      summary TEXT NOT NULL DEFAULT '',   -- node outcome (plan text, exec notes, verify output tail)
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_workflow_nodes_run ON workflow_nodes(run_id, id);
+
+    CREATE TABLE IF NOT EXISTS workflow_attempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      node_id INTEGER NOT NULL REFERENCES workflow_nodes(id) ON DELETE CASCADE,
+      session_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,  -- agent chat session used
+      prompt TEXT NOT NULL,           -- what we asked the agent
+      result TEXT NOT NULL DEFAULT '',-- agent's final message / stop reason
+      exit_code INTEGER,              -- verify nodes only
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_workflow_attempts_node ON workflow_attempts(node_id, id);
   `)
 }
