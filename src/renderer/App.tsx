@@ -13,12 +13,14 @@ import type {
 import { Sidebar } from './components/Sidebar'
 import { SessionHome } from './components/SessionHome'
 import { ConversationView } from './components/ConversationView'
+import { WorkflowsView } from './components/WorkflowsView'
 
 export function App(): React.JSX.Element {
   const [agents, setAgents] = useState<AgentConfigDto[]>([])
   const [sessions, setSessions] = useState<SessionSummaryDto[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [activeRecord, setActiveRecord] = useState<SessionRecordDto | null>(null)
+  const [view, setView] = useState<'sessions' | 'workflows'>('sessions')
 
   const refreshSessions = useCallback(async (): Promise<void> => {
     setSessions(await window.loomdesk.listSessions())
@@ -48,12 +50,19 @@ export function App(): React.JSX.Element {
       <Sidebar
         sessions={sessions}
         activeId={activeId}
-        onSelect={setActiveId}
+        onSelect={(id) => {
+          setView('sessions')
+          setActiveId(id)
+        }}
         onCreated={refreshSessions}
         agents={agents}
+        view={view}
+        onViewChange={setView}
       />
       <main className="flex-1 overflow-hidden">
-        {activeId && activeRecord ? (
+        {view === 'workflows' ? (
+          <WorkflowsView agents={agents} />
+        ) : activeId && activeRecord ? (
           <ConversationView
             key={activeRecord.id}
             session={activeRecord}

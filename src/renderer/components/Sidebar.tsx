@@ -21,6 +21,8 @@ interface Props {
   activeId: string | null
   onSelect: (id: string) => void
   onCreated: () => void
+  view: 'sessions' | 'workflows'
+  onViewChange: (view: 'sessions' | 'workflows') => void
 }
 
 export function Sidebar({
@@ -28,7 +30,9 @@ export function Sidebar({
   agents,
   activeId,
   onSelect,
-  onCreated
+  onCreated,
+  view,
+  onViewChange
 }: Props): React.JSX.Element {
   const [creating, setCreating] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -46,17 +50,39 @@ export function Sidebar({
           >
             ⚙
           </button>
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="rounded bg-(--color-accent) px-2 py-1 text-xs font-medium text-white hover:bg-(--color-accent-hover)"
-          >
-            New session
-          </button>
+          {view === 'sessions' && (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="rounded bg-(--color-accent) px-2 py-1 text-xs font-medium text-white hover:bg-(--color-accent-hover)"
+            >
+              New session
+            </button>
+          )}
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 pb-2">
+      {/* Surface switch: chat sessions or controlled workflows. */}
+      <div className="mx-2 mb-1 grid grid-cols-2 gap-1 rounded border border-(--color-border) p-1">
+        {(['sessions', 'workflows'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onViewChange(v)}
+            className={`rounded px-2 py-1 text-xs capitalize ${
+              view === v
+                ? 'bg-(--color-surface-hover) font-medium'
+                : 'text-(--color-text-secondary) hover:bg-(--color-surface-hover)'
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+
+      <nav
+        className={`flex-1 overflow-y-auto px-2 pb-2 ${view === 'workflows' ? 'hidden' : ''}`}
+      >
         {sessions.length === 0 && (
           <p className="px-2 py-6 text-center text-xs text-(--color-text-secondary)">
             No sessions yet
