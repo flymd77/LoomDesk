@@ -32,7 +32,16 @@ const api: LoomDeskApi = {
   setFeishuSettings: (values) => ipcRenderer.invoke('notify:feishu:set', values),
   testFeishu: () => ipcRenderer.invoke('notify:feishu:test'),
 
-  getSetupGuide: (agentId) => ipcRenderer.invoke('agents:setupGuide', agentId)
+  getSetupGuide: (agentId) => ipcRenderer.invoke('agents:setupGuide', agentId),
+
+  createWorkflow: (params) => ipcRenderer.invoke('workflows:create', params),
+  listWorkflows: (limit) => ipcRenderer.invoke('workflows:list', limit),
+  getWorkflow: (id) => ipcRenderer.invoke('workflows:get', id),
+  workflowNodes: (id) => ipcRenderer.invoke('workflows:nodes', id),
+  workflowAttempts: (nodeId) => ipcRenderer.invoke('workflows:attempts', nodeId),
+  startWorkflow: (id) => ipcRenderer.invoke('workflows:start', id),
+  cancelWorkflow: (id) => ipcRenderer.invoke('workflows:cancel', id),
+  removeWorkflow: (id) => ipcRenderer.invoke('workflows:remove', id)
 }
 
 contextBridge.exposeInMainWorld('loomdesk', api)
