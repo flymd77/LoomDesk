@@ -6,7 +6,7 @@ import { closeCachedDatabase, openDatabase, type DbHandle } from '../src/main/st
 import { SessionStore } from '../src/main/store/sessions'
 import { AgentRegistry } from '../src/main/agents/registry'
 import { ApprovalService } from '../src/main/notify/approval'
-import { FeishuClient, type FeishuConfig } from '../src/main/notify/feishu'
+import { FeishuClient } from '../src/main/notify/feishu'
 import type { PermissionRequest, PermissionOption } from '../src/main/acp/permission'
 
 /**
