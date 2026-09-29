@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import type { Server } from 'node:http'
 import { closeCachedDatabase, openDatabase, type DbHandle } from '../src/main/store/db'
 import { SettingsStore } from '../src/main/store/settings'
 import { SessionStore } from '../src/main/store/sessions'
 import { AgentRegistry } from '../src/main/agents/registry'
-import { SessionService } from '../src/main/sessions/service'
 import { NotifyService } from '../src/main/notify/service'
 import { FeishuClient, type FeishuConfig } from '../src/main/notify/feishu'
 
@@ -22,7 +22,6 @@ let dir: string
 let db: DbHandle
 let settings: SettingsStore
 let sessions: SessionStore
-let service: SessionService
 let notify: NotifyService
 
 beforeEach(() => {
@@ -32,7 +31,6 @@ beforeEach(() => {
   new AgentRegistry(db) // seed builtins (FK target)
   sessions = new SessionStore(db)
   settings = new SettingsStore(db)
-  service = new SessionService(sessions, new AgentRegistry(db))
   notify = new NotifyService(sessions, settings)
 })
 
@@ -96,7 +94,7 @@ describe('NotifyService status filtering', () => {
 
 describe('FeishuClient', () => {
   let serverUrl: string
-  let server: import('node:http').Server
+  let server: Server
   let requests: Array<{ path: string; body: Record<string, unknown> }>
 
   beforeEach(async () => {
