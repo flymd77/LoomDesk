@@ -27,10 +27,13 @@ import type { SessionStore, MessageRecord } from '../store/sessions'
  */
 
 export interface SessionEvent {
-  type: 'message' | 'status' | 'permission' | 'usage'
+  type: 'message' | 'status' | 'permission' | 'usage' | 'queued'
   sessionId: string
   payload: unknown
 }
+
+/** Max prompts held while a turn is in flight. */
+const MAX_QUEUE = 10
 
 /** Live handle for a running session. */
 interface LiveSession {
@@ -40,8 +43,33 @@ interface LiveSession {
   acp: AcpSession | null
 }
 
+/** One queued or in-flight prompt with its caller's deferred result. */
+interface QueueEntry {
+  text: string
+  resolve: (value: { stopReason: string }) => void
+  reject: (err: unknown) => void
+  promise: Promise<{ stopReason: string }>
+}
+
+function makeQueueEntry(text: string): QueueEntry {
+  let resolve!: QueueEntry['resolve']
+  let reject!: QueueEntry['reject']
+  const promise = new Promise<{ stopReason: string }>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { text, resolve, reject, promise }
+}
+
+/** Dispatch-loop state for a session that has at least one live turn. */
+interface PendingTurns {
+  queue: QueueEntry[]
+}
+
 export class SessionService {
   private readonly live = new Map<string, LiveSession>()
+  /** Per-session dispatch state: the loop exists while a turn runs. */
+  private readonly pendingTurns = new Map<string, PendingTurns>()
   /** External observers of status transitions (e.g. notifications). */
   private statusListeners = new Set<(sessionId: string, status: string) => void>()
   /**
@@ -167,24 +195,73 @@ export class SessionService {
   }
 
   /**
-   * Send one user turn. Resolves when the agent finishes the turn
-   * (stop reason received). Messages are persisted as they stream.
+   * Send one user turn. While the agent is busy the prompt is queued
+   * (persisted immediately, dispatched when the running loop reaches
+   * it) instead of failing; the returned promise resolves when THIS
+   * prompt's turn completes. Queue overflow rejects.
    */
   async prompt(sessionId: string, text: string): Promise<{ stopReason: string }> {
     const live = this.live.get(sessionId)
     if (!live?.acp) throw new Error(`session '${sessionId}' is not online`)
 
+    const pending = this.pendingTurns.get(sessionId)
+    if (pending) {
+      if (pending.queue.length >= MAX_QUEUE) {
+        throw new Error(`prompt queue is full (max ${MAX_QUEUE})`)
+      }
+      const entry = makeQueueEntry(text)
+      pending.queue.push(entry)
+      this.sessions.appendMessage(sessionId, 'user', { text })
+      this.emit(sessionId, 'message', { role: 'user', content: { text } })
+      this.emit(sessionId, 'queued', { queued: pending.queue.length })
+      return entry.promise
+    }
+
+    // Idle: this caller owns the dispatch loop.
+    const fresh: PendingTurns = { queue: [] }
+    this.pendingTurns.set(sessionId, fresh)
+    const first = makeQueueEntry(text)
     this.sessions.appendMessage(sessionId, 'user', { text })
     this.emit(sessionId, 'message', { role: 'user', content: { text } })
-    this.sessions.updateStatus(sessionId, 'running')
-    this.emit(sessionId, 'status', { status: 'running' })
-    this.notifyStatus(sessionId, 'running')
+    void this.dispatchLoop(sessionId, first).catch((err) =>
+      console.error('[sessions] dispatch loop crashed:', err)
+    )
+    return first.promise
+  }
 
+  /**
+   * Sequentially run the first prompt and then everything queued while
+   * it ran. Status stays 'running' across the whole batch; the session
+   * goes idle only when the queue is empty.
+   */
+  private async dispatchLoop(sessionId: string, first: QueueEntry): Promise<void> {
+    const pending = this.pendingTurns.get(sessionId)
+    if (!pending) {
+      first.reject(new Error(`session '${sessionId}' is not online`))
+      return
+    }
     try {
-      const result = await live.acp.prompt([{ type: 'text', text }])
-      this.recordUsage(sessionId, result)
-      return { stopReason: result.stopReason }
+      let current: QueueEntry | null = first
+      while (current) {
+        const live = this.live.get(sessionId)
+        if (!live?.acp) {
+          current.reject(new Error(`session '${sessionId}' is not online`))
+          return
+        }
+        this.sessions.updateStatus(sessionId, 'running')
+        this.emit(sessionId, 'status', { status: 'running' })
+        this.notifyStatus(sessionId, 'running')
+        try {
+          const result = await live.acp.prompt([{ type: 'text', text: current.text }])
+          this.recordUsage(sessionId, result)
+          current.resolve({ stopReason: result.stopReason })
+        } catch (err) {
+          current.reject(err)
+        }
+        current = pending.queue.shift() ?? null
+      }
     } finally {
+      this.pendingTurns.delete(sessionId)
       this.sessions.updateStatus(sessionId, 'idle')
       this.emit(sessionId, 'status', { status: 'idle' })
       this.notifyStatus(sessionId, 'idle')
@@ -230,6 +307,13 @@ export class SessionService {
     const live = this.live.get(sessionId)
     if (!live) return
     this.live.delete(sessionId)
+    // Queued callers fail fast; the running turn's loop sees the live
+    // entry gone and rejects too.
+    const pending = this.pendingTurns.get(sessionId)
+    this.pendingTurns.delete(sessionId)
+    for (const entry of pending?.queue ?? []) {
+      entry.reject(new Error(`session '${sessionId}' was disposed`))
+    }
     live.transport.close({ force: true })
     this.sessions.updateStatus(sessionId, 'closed')
     this.emit(sessionId, 'status', { status: 'closed' })
