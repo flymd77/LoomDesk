@@ -38,6 +38,10 @@ export interface SessionSummaryDto {
   status: 'idle' | 'running' | 'waiting_permission' | 'closed'
   updatedAt: number
   messageCount: number
+  inputTokens: number
+  outputTokens: number
+  cachedReadTokens: number
+  turns: number
 }
 
 export interface SessionRecordDto {
@@ -47,6 +51,10 @@ export interface SessionRecordDto {
   workspacePath: string
   acpSessionId: string | null
   status: SessionSummaryDto['status']
+  inputTokens: number
+  outputTokens: number
+  cachedReadTokens: number
+  turns: number
   createdAt: number
   updatedAt: number
 }
@@ -84,9 +92,15 @@ export interface StatusEventPayload {
   status: SessionSummaryDto['status']
 }
 
+/** Payload of a 'usage' session event (cumulative session totals). */
+export interface UsageEventPayload {
+  inputTokens: number
+  outputTokens: number
+}
+
 /** Pushed from main to renderer on session activity. */
 export interface SessionEventDto {
-  type: 'message' | 'status' | 'permission'
+  type: 'message' | 'status' | 'permission' | 'usage'
   sessionId: string
   payload: unknown
 }

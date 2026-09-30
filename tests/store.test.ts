@@ -84,6 +84,25 @@ describe('SessionStore', () => {
     expect(got?.acpSessionId).toBe('acp-xyz')
   })
 
+  it('accumulates per-turn usage and reports it in summaries', () => {
+    const s = sessions.create('codex', '/tmp/a', 't')
+
+    sessions.addUsage(s.id, { inputTokens: 100, outputTokens: 40, cachedReadTokens: 10 })
+    sessions.addUsage(s.id, { inputTokens: 200, outputTokens: 60 })
+    // Zero-only turns must not bump the turn counter.
+    sessions.addUsage(s.id, {})
+
+    const got = sessions.get(s.id)
+    expect(got?.inputTokens).toBe(300)
+    expect(got?.outputTokens).toBe(100)
+    expect(got?.cachedReadTokens).toBe(10)
+    expect(got?.turns).toBe(2)
+
+    const listed = sessions.list().find((x) => x.id === s.id)
+    expect(listed?.inputTokens).toBe(300)
+    expect(listed?.turns).toBe(2)
+  })
+
   it('cascade deletes messages with the session', () => {
     const s = sessions.create('codex', '/tmp/a', 't')
     sessions.appendMessage(s.id, 'user', { text: 'x' })

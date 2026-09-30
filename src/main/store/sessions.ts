@@ -18,6 +18,10 @@ export interface SessionRecord {
   workspacePath: string
   acpSessionId: string | null
   status: SessionStatus
+  inputTokens: number
+  outputTokens: number
+  cachedReadTokens: number
+  turns: number
   createdAt: number
   updatedAt: number
 }
@@ -41,6 +45,17 @@ export interface SessionSummary {
   status: SessionStatus
   updatedAt: number
   messageCount: number
+  inputTokens: number
+  outputTokens: number
+  cachedReadTokens: number
+  turns: number
+}
+
+/** Token usage reported by one completed prompt turn. */
+export interface TurnUsage {
+  inputTokens?: number
+  outputTokens?: number
+  cachedReadTokens?: number
 }
 
 export class SessionStore {
@@ -55,6 +70,10 @@ export class SessionStore {
       workspacePath,
       acpSessionId: null,
       status: 'idle',
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedReadTokens: 0,
+      turns: 0,
       createdAt: now,
       updatedAt: now
     }
@@ -93,7 +112,11 @@ export class SessionStore {
       title: row.title as string,
       status: row.status as SessionStatus,
       updatedAt: row.updated_at as number,
-      messageCount: row.message_count as number
+      messageCount: row.message_count as number,
+      inputTokens: (row.input_tokens as number | undefined) ?? 0,
+      outputTokens: (row.output_tokens as number | undefined) ?? 0,
+      cachedReadTokens: (row.cached_read_tokens as number | undefined) ?? 0,
+      turns: (row.turns as number | undefined) ?? 0
     }))
   }
 
@@ -114,6 +137,24 @@ export class SessionStore {
     this.db.db
       .prepare(`UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?`)
       .run(title, Date.now(), id)
+  }
+
+  /** Add one completed turn's usage to the session's running totals. */
+  addUsage(id: string, usage: TurnUsage): void {
+    const input = usage.inputTokens ?? 0
+    const output = usage.outputTokens ?? 0
+    const cached = usage.cachedReadTokens ?? 0
+    if (input === 0 && output === 0 && cached === 0) return
+    this.db.db
+      .prepare(
+        `UPDATE sessions SET
+           input_tokens = input_tokens + ?,
+           output_tokens = output_tokens + ?,
+           cached_read_tokens = cached_read_tokens + ?,
+           turns = turns + 1
+         WHERE id = ?`
+      )
+      .run(input, output, cached, id)
   }
 
   appendMessage(sessionId: string, role: MessageRole, content: unknown): MessageRecord {
@@ -167,6 +208,10 @@ function rowToSession(row: Record<string, unknown>): SessionRecord {
     workspacePath: row.workspace_path as string,
     acpSessionId: (row.acp_session_id as string | null) ?? null,
     status: row.status as SessionStatus,
+    inputTokens: (row.input_tokens as number | undefined) ?? 0,
+    outputTokens: (row.output_tokens as number | undefined) ?? 0,
+    cachedReadTokens: (row.cached_read_tokens as number | undefined) ?? 0,
+    turns: (row.turns as number | undefined) ?? 0,
     createdAt: row.created_at as number,
     updatedAt: row.updated_at as number
   }

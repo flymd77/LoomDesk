@@ -42,7 +42,7 @@ process.stdin.on('data', (chunk) => {
       const sid = msg.params.sessionId;
       send({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: sid, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'pong:' + JSON.stringify(msg.params.content[0].text) } } } });
       send({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: sid, update: { sessionUpdate: 'tool_call', toolCallId: 't9', title: 'Shell', status: 'in_progress' } } });
-      send({ jsonrpc: '2.0', id: msg.id, result: { stopReason: 'end_turn' } });
+      send({ jsonrpc: '2.0', id: msg.id, result: { stopReason: 'end_turn', usage: { inputTokens: 120, outputTokens: 35, cachedReadTokens: 7 } } });
     } else if (msg.method === 'session/cancel') {
       // notification; nothing to do
     }
@@ -132,6 +132,19 @@ describe('SessionService', () => {
     expect(sessions.get(record.id)?.status).toBe('idle')
     // 'running' was observed between; we assert the end state here and
     // the ordering guarantee is covered by the streaming test above.
+  })
+
+  it('accumulates usage from the prompt result', async () => {
+    const record = sessions.create('codex', WORKSPACE, 'test')
+    await service.start(record.id)
+    await service.prompt(record.id, 'one')
+    await service.prompt(record.id, 'two')
+
+    const got = sessions.get(record.id)
+    expect(got?.inputTokens).toBe(240)
+    expect(got?.outputTokens).toBe(70)
+    expect(got?.cachedReadTokens).toBe(14)
+    expect(got?.turns).toBe(2)
   })
 
   it('resume path loads the prior acp session id', async () => {
