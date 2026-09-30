@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   MessageDto,
   MessageEventPayload,
+  QueuedEventPayload,
   SessionRecordDto,
   SessionSummaryDto,
   UsageEventPayload
@@ -31,6 +32,7 @@ export function ConversationView({ session, onStatusChange }: Props): React.JSX.
   const [messages, setMessages] = useState<MessageDto[]>([])
   const [status, setStatus] = useState<SessionSummaryDto['status'] | null>(null)
   const [usage, setUsage] = useState({ input: session.inputTokens, output: session.outputTokens })
+  const [queued, setQueued] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(true)
 
@@ -44,6 +46,7 @@ export function ConversationView({ session, onStatusChange }: Props): React.JSX.
     setError(null)
     setStarting(true)
     setUsage({ input: session.inputTokens, output: session.outputTokens })
+    setQueued(0)
 
     let disposed = false
 
@@ -89,6 +92,9 @@ export function ConversationView({ session, onStatusChange }: Props): React.JSX.
       } else if (event.type === 'usage') {
         const payload = event.payload as UsageEventPayload
         setUsage({ input: payload.inputTokens, output: payload.outputTokens })
+      } else if (event.type === 'queued') {
+        const payload = event.payload as QueuedEventPayload
+        setQueued(payload.queued)
       }
     })
 
@@ -135,6 +141,11 @@ export function ConversationView({ session, onStatusChange }: Props): React.JSX.
               {usageLabel}
             </span>
           )}
+          {queued > 0 && (
+            <span className="text-xs text-(--color-warning)" title="Prompts waiting to run">
+              {queued} queued
+            </span>
+          )}
           {status && (
             <span className="text-xs text-(--color-text-secondary)">{status}</span>
           )}
@@ -156,7 +167,7 @@ export function ConversationView({ session, onStatusChange }: Props): React.JSX.
       )}
 
       <MessageList messages={messages} />
-      <PromptInput disabled={starting || status === 'running'} onSend={(t) => void send(t)} />
+      <PromptInput disabled={starting} onSend={(t) => void send(t)} />
     </div>
   )
 }

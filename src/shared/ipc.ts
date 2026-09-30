@@ -98,9 +98,14 @@ export interface UsageEventPayload {
   outputTokens: number
 }
 
+/** Payload of a 'queued' session event (queue depth after enqueueing). */
+export interface QueuedEventPayload {
+  queued: number
+}
+
 /** Pushed from main to renderer on session activity. */
 export interface SessionEventDto {
-  type: 'message' | 'status' | 'permission' | 'usage'
+  type: 'message' | 'status' | 'permission' | 'usage' | 'queued'
   sessionId: string
   payload: unknown
 }
