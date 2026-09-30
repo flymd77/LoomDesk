@@ -15,6 +15,13 @@ const STATUS_DOT: Record<SessionSummaryDto['status'], string> = {
   closed: 'bg-(--color-border)'
 }
 
+/** Compact token count: 1234 -> 1.2k, 5678000 -> 5.7M. */
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
+  return String(n)
+}
+
 interface Props {
   sessions: SessionSummaryDto[]
   agents: AgentConfigDto[]
@@ -108,6 +115,8 @@ export function Sidebar({
               </span>
               <span className="mt-0.5 block pl-4 text-xs text-(--color-text-secondary)">
                 {agent?.name ?? s.agentId} · {s.messageCount} messages
+                {s.inputTokens + s.outputTokens > 0 &&
+                  ` · ${formatTokens(s.inputTokens + s.outputTokens)} tok`}
               </span>
             </button>
           )

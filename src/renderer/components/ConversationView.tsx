@@ -9,7 +9,8 @@ import type {
   MessageDto,
   MessageEventPayload,
   SessionRecordDto,
-  SessionSummaryDto
+  SessionSummaryDto,
+  UsageEventPayload
 } from '../../shared/ipc'
 import { MessageList } from './MessageList'
 import { PromptInput } from './PromptInput'
@@ -19,9 +20,17 @@ interface Props {
   onStatusChange: () => void
 }
 
+/** Compact token count: 1234 -> 1.2k, 5678000 -> 5.7M. */
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
+  return String(n)
+}
+
 export function ConversationView({ session, onStatusChange }: Props): React.JSX.Element {
   const [messages, setMessages] = useState<MessageDto[]>([])
   const [status, setStatus] = useState<SessionSummaryDto['status'] | null>(null)
+  const [usage, setUsage] = useState({ input: session.inputTokens, output: session.outputTokens })
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(true)
 
@@ -34,6 +43,7 @@ export function ConversationView({ session, onStatusChange }: Props): React.JSX.
     setMessages([])
     setError(null)
     setStarting(true)
+    setUsage({ input: session.inputTokens, output: session.outputTokens })
 
     let disposed = false
 
@@ -76,6 +86,9 @@ export function ConversationView({ session, onStatusChange }: Props): React.JSX.
         const payload = event.payload as { status: SessionSummaryDto['status'] }
         setStatus(payload.status)
         onStatusChange()
+      } else if (event.type === 'usage') {
+        const payload = event.payload as UsageEventPayload
+        setUsage({ input: payload.inputTokens, output: payload.outputTokens })
       }
     })
 
@@ -104,12 +117,24 @@ export function ConversationView({ session, onStatusChange }: Props): React.JSX.
   }, [session.id])
 
   const running = status === 'running' || starting
+  const usageLabel =
+    usage.input + usage.output > 0
+      ? `${formatTokens(usage.input)} in / ${formatTokens(usage.output)} out`
+      : null
 
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-(--color-border) px-4 py-2">
         <span className="truncate text-sm font-medium">{session.title || 'Untitled'}</span>
         <div className="flex items-center gap-2">
+          {usageLabel && (
+            <span
+              className="text-xs text-(--color-text-secondary)"
+              title={`${usage.input} input / ${usage.output} output tokens`}
+            >
+              {usageLabel}
+            </span>
+          )}
           {status && (
             <span className="text-xs text-(--color-text-secondary)">{status}</span>
           )}

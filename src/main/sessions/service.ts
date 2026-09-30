@@ -27,7 +27,7 @@ import type { SessionStore, MessageRecord } from '../store/sessions'
  */
 
 export interface SessionEvent {
-  type: 'message' | 'status' | 'permission'
+  type: 'message' | 'status' | 'permission' | 'usage'
   sessionId: string
   payload: unknown
 }
@@ -182,11 +182,38 @@ export class SessionService {
 
     try {
       const result = await live.acp.prompt([{ type: 'text', text }])
-      return result
+      this.recordUsage(sessionId, result)
+      return { stopReason: result.stopReason }
     } finally {
       this.sessions.updateStatus(sessionId, 'idle')
       this.emit(sessionId, 'status', { status: 'idle' })
       this.notifyStatus(sessionId, 'idle')
+    }
+  }
+
+  /**
+   * Extract the token usage block from a completed prompt result and
+   * accumulate it on the session. Agents that omit usage simply
+   * contribute nothing; missing fields count as zero.
+   */
+  private recordUsage(sessionId: string, result: { stopReason: string } & Record<string, unknown>): void {
+    const usage = result.usage as Record<string, unknown> | undefined
+    if (!usage || typeof usage !== 'object') return
+    const num = (v: unknown): number | undefined =>
+      typeof v === 'number' && Number.isFinite(v) ? v : undefined
+    const turn = {
+      inputTokens: num(usage['inputTokens']),
+      outputTokens: num(usage['outputTokens']),
+      cachedReadTokens: num(usage['cachedReadTokens'])
+    }
+    if (!turn.inputTokens && !turn.outputTokens && !turn.cachedReadTokens) return
+    this.sessions.addUsage(sessionId, turn)
+    const updated = this.sessions.get(sessionId)
+    if (updated) {
+      this.emit(sessionId, 'usage', {
+        inputTokens: updated.inputTokens,
+        outputTokens: updated.outputTokens
+      })
     }
   }
 

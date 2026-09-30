@@ -124,4 +124,14 @@ function migrate(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_workflow_attempts_node ON workflow_attempts(node_id, id);
   `)
+
+  // Cumulative token usage per session (added after first release).
+  const sessionCols = db.prepare(`PRAGMA table_info(sessions)`).all() as Array<{ name: string }>
+  const names = new Set(sessionCols.map((c) => c.name))
+  if (!names.has('input_tokens')) {
+    db.exec(`ALTER TABLE sessions ADD COLUMN input_tokens INTEGER NOT NULL DEFAULT 0`)
+    db.exec(`ALTER TABLE sessions ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0`)
+    db.exec(`ALTER TABLE sessions ADD COLUMN cached_read_tokens INTEGER NOT NULL DEFAULT 0`)
+    db.exec(`ALTER TABLE sessions ADD COLUMN turns INTEGER NOT NULL DEFAULT 0`)
+  }
 }
